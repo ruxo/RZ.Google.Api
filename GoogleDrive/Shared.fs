@@ -2,6 +2,8 @@
 
 open Newtonsoft.Json
 open System
+open System.Collections.Generic
+open System.Runtime.CompilerServices
 
 [<NoComparison; CustomEquality>]
 [<DefaultAugmentation(false)>]
@@ -59,12 +61,15 @@ module Try =
         with 
         | ex -> Failure ex
 
-    let call f x = Runnable (fun () -> f x)
-    let map g (Runnable f) = Runnable <| (f >> g)
+    let inline unsafeTry (Runnable f) = f()
+
+    let inline call f x = Runnable (fun () -> f x)
+    let inline map g (Runnable f) = Runnable <| (f >> g)
     let bind g (Runnable f) = Runnable <| fun() -> let (Runnable v) = g(f()) in v()
 
 type Try<'T when 'T: equality> with
     member inline self.Try() = Try.``try`` self
+    member inline self.UnsafeTry() = Try.unsafeTry self
 
 let inline ``try`` f = Runnable f
 
@@ -92,3 +97,8 @@ type OptionConverter<'T>() =
 type Option<'a> with
     member opt.Get() = Option.get opt
 
+// ------------ Extensions ---------------
+[<Extension>]
+type StringExtensions() =
+    [<Extension>]
+    static member inline Join(ss: string seq, delimiter: string) = String.Join(delimiter, ss)
