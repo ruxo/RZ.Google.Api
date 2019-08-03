@@ -1,7 +1,7 @@
 ﻿module GoogleDrive.Tests
 
 open Xunit
-open RZ.Google.Drive
+open RZ.Google.Auth
 open RZ.Foundation.FSharp
 open FluentAssertions
 

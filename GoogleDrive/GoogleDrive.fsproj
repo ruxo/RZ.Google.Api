@@ -15,6 +15,7 @@
 
   <ItemGroup>
     <Compile Include="Shared.fs" />
+    <Compile Include="Drive\Scopes.fs" />
     <Compile Include="Auth\OAuth\LocalServerCodeReceiver.fs" />
     <Compile Include="Auth.fs" />
   </ItemGroup>

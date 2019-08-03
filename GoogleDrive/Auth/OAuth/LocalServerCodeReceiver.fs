@@ -6,6 +6,7 @@ open System.Net.Sockets
 open System.Net
 open FSharp.Control
 open System.Text
+open System.IO
 
 [<Literal>]
 let private DefaultClosePageResponse =
@@ -42,31 +43,39 @@ let private getRandomUnusedPort() =
 
 [<Literal>]
 let private NetworkReadBufferSize = 1024
-type LocalServerCodeReceiver(port: int, closePageResponse) =
+type LocalServerCodeReceiver(port: int, closePageResponse: string) =
 
     let redirectUri = System.String.Format(CallbackUriTemplate127001, port.ToString())
     let listener = TcpListener(IPAddress.Loopback, port)
 
-    let rec readStream buffer (stream: NetworkStream) =
+    let readLines (stream: StreamReader) =
         asyncSeq {
-            let! size = stream.ReadAsync(buffer, 0, buffer.Length) |> Async.AwaitTask
-            if size > 0 then
-                for i in 0 .. size-1 do
-                    yield char(buffer.[i])
-                yield! readStream buffer stream
+            while not stream.EndOfStream do
+                let! line = stream.ReadLineAsync() |> Async.AwaitTask
+                yield line
         }
 
-    let readLines (stringSeq: AsyncSeq<char>) =
-        asyncSeq {
-            let sb = StringBuilder()
-            for c in stringSeq do
-                sb.Append(c) |> ignore
-                if c = '\n' && sb.Length > 0 && sb.[sb.Length-2] = '\r' then
-                    yield sb.ToString()
-                    sb.Clear() |> ignore
-            if sb.Length > 0 then
-                yield sb.ToString()
-        }
+    let validateAndGetParameters requestLine =
+        let parts = (requestLine: string).Split(' ')
+        if parts.Length <> 3 then invalidArg "requestLine" "Request line ill-formatted. Should be '<request-method> <request-path> HTTP/1.1'"
+
+        let verb = parts.[0]
+        if verb <> "GET" then invalidArg "requestLine" (sprintf "Expected 'GET' request, got '%s'" verb)
+
+        let path = parts.[1]
+        if not <| path.StartsWith LoopbackCallbackPath then invalidArg "requestLine" (sprintf "Expected request path to start '%s', got '%s'" LoopbackCallbackPath path)
+
+        let pathParts = path.Split('?')
+        if pathParts.Length = 1 then
+            Map.empty
+        else if pathParts.Length <> 2 then invalidArg "requestLine" (sprintf "Expected a single '?' in request path, got '%s'" path)
+        else
+            pathParts.[1].Split([|'&'|], StringSplitOptions.RemoveEmptyEntries)
+            |> Seq.map (fun param ->
+                let keyValue = param.Split('=')
+                (WebUtility.UrlDecode keyValue.[0], WebUtility.UrlDecode <| if keyValue.Length = 1 then String.Empty else keyValue.[1])
+            )
+            |> Map.ofSeq
 
     interface IDisposable with
         member __.Dispose() = listener.Stop()
@@ -78,13 +87,23 @@ type LocalServerCodeReceiver(port: int, closePageResponse) =
     member __.Listen() =
         async {
             use! client = listener.AcceptTcpClientAsync() |> Async.AwaitTask
+            printfn "Connection receivd!"
             let stream = client.GetStream()
-            let buffer = Array.zeroCreate NetworkReadBufferSize
-            let! content = stream |> readStream buffer |> readLines |> AsyncSeq.toArrayAsync
-            for s in content do
-                Console.Write(s)
-            return content
+            let reader = new StreamReader(stream)
+            let! requestLine = reader.ReadLineAsync() |> Async.AwaitTask
+            let requestParams = validateAndGetParameters requestLine
+            do! reader |> readLines 
+                       |> AsyncSeq.takeWhile (fun line -> line.Length > 0)
+                       |> AsyncSeq.iter Console.WriteLine
+
+            let writer = new StreamWriter(stream)
+            do! writer.WriteAsync("HTTP/1.1 200 OK\r\n\r\n") |> Async.AwaitTask
+            do! writer.WriteAsync(closePageResponse) |> Async.AwaitTask
+            do! writer.FlushAsync() |> Async.AwaitTask
+            return requestParams
         }
 
-let createLocalServerCodeReceiver() =
-    getRandomUnusedPort() |> Try.map (fun port -> new LocalServerCodeReceiver(port, DefaultClosePageResponse))
+let createLocalServerCodeReceiverOnPort port = new LocalServerCodeReceiver(port, DefaultClosePageResponse)
+
+let createLocalServerCodeReceiver = getRandomUnusedPort >> Try.map createLocalServerCodeReceiverOnPort
+

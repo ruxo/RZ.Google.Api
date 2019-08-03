@@ -102,3 +102,5 @@ type Option<'a> with
 type StringExtensions() =
     [<Extension>]
     static member inline Join(ss: string seq, delimiter: string) = String.Join(delimiter, ss)
+
+let constant x = fun _ -> x
