@@ -14,6 +14,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Include="Common.fs" />
     <Compile Include="Shared.fs" />
     <Compile Include="Drive\Scopes.fs" />
     <Compile Include="Auth\OAuth\LocalServerCodeReceiver.fs" />
@@ -22,7 +23,12 @@
 
   <ItemGroup>
     <PackageReference Include="FSharp.Control.AsyncSeq" Version="2.0.21" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.2" />
+    <PackageReference Include="FSharp.Data" Version="3.1.1" />
+    <PackageReference Include="FSharp.Json" Version="0.3.7" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Update="FSharp.Core" Version="4.7.0" />
   </ItemGroup>
 
 </Project>

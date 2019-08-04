@@ -1,6 +1,5 @@
 ﻿module RZ.Foundation.FSharp
 
-open Newtonsoft.Json
 open System
 open System.Collections.Generic
 open System.Runtime.CompilerServices
@@ -74,6 +73,7 @@ type Try<'T when 'T: equality> with
 let inline ``try`` f = Runnable f
 
 // ----------------- Newtonsoft, OPTION CONVERTER -----------------
+(*
 type OptionConverter<'T>() =
     inherit JsonConverter()
 
@@ -92,6 +92,7 @@ type OptionConverter<'T>() =
             | Some v -> serializer.Serialize(writer, v, typeof<'T>)
             | None -> serializer.Serialize(writer, null)
         | _ -> failwithf "OptionConverter: invalid value (Type = %s) as option" (value.GetType().Name)
+*)
 
 // --------------- OPTION ---------------
 type Option<'a> with

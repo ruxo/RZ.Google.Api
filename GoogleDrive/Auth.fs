@@ -1,70 +1,49 @@
 ﻿namespace RZ.Google.Auth
 
-open Newtonsoft.Json
-open Newtonsoft.Json.Serialization
 open System.IO
 open RZ.Foundation.FSharp
-open System.Collections.Generic
 open System
 open RZ.Google.Auth.OAuth.LocalServer
+open FSharp.Data
+open RZ.Google.Common
 
-[<JsonObject(NamingStrategyType=typeof<SnakeCaseNamingStrategy>)>]
 type ClientSecrets = {
     ClientId: string
     ClientSecret: string
 }
 
-[<JsonObject(NamingStrategyType=typeof<SnakeCaseNamingStrategy>)>]
 type GoogleClientSecrets = {
-    [<JsonConverter(typeof<OptionConverter<ClientSecrets>>)>]
     Installed: ClientSecrets option
-
-    [<JsonConverter(typeof<OptionConverter<ClientSecrets>>)>]
     Web: ClientSecrets option
 }
 
 module GoogleClientSecrets =
     let secrets gcs = gcs.Installed |> Option.orElse gcs.Web
 
-    let loadFromString :string -> Try<GoogleClientSecrets> = Try.call JsonConvert.DeserializeObject<GoogleClientSecrets>
-    let loadFromFile :string -> Try<GoogleClientSecrets> = Try.call File.ReadAllText >> Try.bind loadFromString
+    let loadFromString secretContent = 
+        let secrets = secretContent |> jsonDeserializer<GoogleClientSecrets>
+        if secrets.Installed.IsSome || secrets.Web.IsSome
+            then secrets
+            else invalidArg "secretContent" "Invalid secret keys content"
+
+    let loadFromFile = File.ReadAllText >> loadFromString >> secrets >> Option.get
     
 type GoogleClientSecrets with
     member self.secrets() = GoogleClientSecrets.secrets self
 
 module Authentications =
-    [<JsonObject(NamingStrategyType=typeof<SnakeCaseNamingStrategy>)>]
     type TokenResponse = {
         AccessToken: string
         TokenType: string
         Scope: string
-        IdToken: string
-        [<JsonConverter(typeof<OptionConverter<int64>>)>]
-        ExpiresIn: int64 option
-        [<JsonConverter(typeof<OptionConverter<string>>)>]
+        ExpiresIn: int64
         RefreshToken: string option
     }
 
-    [<JsonObject(NamingStrategyType=typeof<SnakeCaseNamingStrategy>)>]
-    type AuthorizationRequestParams = {
-        ResponseType: string
-        ClientId: string
-        RedirectUri: string
-        Scope: string
-        State: string
-
-        AccessType: string
-        Prompt: string
-        LoginHint: string option
-        IncludeGrantedScopes: string option
-        Nonce: string
-    }
-
-    [<NoComparison; NoEquality>]
-    type private GoogleAuthorizationCodeRequestUrl = {
-        AuthorizationServerUrl: Uri
-        QueryParams: AuthorizationRequestParams
-        UserDefinedQueryParams: KeyValuePair<string,string> seq
+    type AuthorizationError = {
+        Error: string
+        ErrorDescription: string
+        ErrorUri: string
     }
 
     open System.Diagnostics
@@ -86,13 +65,44 @@ module Authentications =
 
     [<Literal>]
     let private OidcAuthorizationUrl = "https://accounts.google.com/o/oauth2/v2/auth"
+    [<Literal>]
+    let private OidcTokenUrl = "https://oauth2.googleapis.com/token"
 
-    let authorize userId (scopes: string seq) (clientSecrets: ClientSecrets) =
+    let private retrieveAuthorizationCode (scopes: string seq) (clientSecrets: ClientSecrets) =
         async {
             use receiver = createLocalServerCodeReceiver().UnsafeTry()
             let uri = sprintf "%s?access_type=offline&response_type=code&client_id=%s&redirect_uri=%s&scope=%s" 
                                 OidcAuthorizationUrl clientSecrets.ClientId (Uri.EscapeUriString receiver.RedirectUri) (Uri.EscapeUriString <| scopes.Join(" "))
             receiver.Start()
             openBrowser uri |> ignore
-            return! receiver.Listen()
+            let! oauthResponse = receiver.Listen()
+            if oauthResponse.ContainsKey "code"
+                then return Ok (oauthResponse.["code"], receiver.RedirectUri)
+                else return Error <| { Error=oauthResponse.["error"]
+                                       ErrorDescription=oauthResponse.["error_description"]
+                                       ErrorUri=oauthResponse.["error_uri"] }
+        }
+
+    let private exchangeCodeForToken (scopes: string seq) (clientSecrets: ClientSecrets) code redirectUri =
+        let payload = [
+            "grant_type", "authorization_code"
+            "scope", scopes.Join(" ")
+            "code", (code: string)
+            "redirect_uri", (redirectUri: string)
+            "client_id", clientSecrets.ClientId
+            "client_secret", clientSecrets.ClientSecret
+        ]
+        async {
+            let! response = Http.AsyncRequestString(OidcTokenUrl, body = FormValues payload)
+            return response |> jsonDeserializer<TokenResponse>
+        }
+
+    exception AuthenticationError of AuthorizationError
+
+    let authorize scopes clientSecrets =
+        async {
+            let! authCode = retrieveAuthorizationCode scopes clientSecrets
+            match authCode with
+            | Ok (code, redirectUri) -> return! exchangeCodeForToken scopes clientSecrets code redirectUri
+            | Error err -> return raise <| AuthenticationError err
         }

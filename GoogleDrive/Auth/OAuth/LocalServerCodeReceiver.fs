@@ -41,8 +41,6 @@ let private getRandomUnusedPort() =
                     listener.Stop()
              )
 
-[<Literal>]
-let private NetworkReadBufferSize = 1024
 type LocalServerCodeReceiver(port: int, closePageResponse: string) =
 
     let redirectUri = System.String.Format(CallbackUriTemplate127001, port.ToString())

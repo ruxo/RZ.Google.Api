@@ -3,9 +3,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 16
 VisualStudioVersion = 16.0.29123.89
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GoogleDrive", "GoogleDrive\GoogleDrive.fsproj", "{D4C76F83-EF04-45EF-815E-6C5D5018499B}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "GoogleDrive", "GoogleDrive\GoogleDrive.fsproj", "{D4C76F83-EF04-45EF-815E-6C5D5018499B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "GoogleDrive.Tests", "GoogleDrive.Tests\GoogleDrive.Tests.fsproj", "{282087B8-0DCC-4EF4-9647-BFE272BA0576}"
+Project("{6EC3EE1D-3C4E-46DD-8F32-0CC8E7565705}") = "GoogleDrive.Tests", "GoogleDrive.Tests\GoogleDrive.Tests.fsproj", "{282087B8-0DCC-4EF4-9647-BFE272BA0576}"
 	ProjectSection(ProjectDependencies) = postProject
 		{D4C76F83-EF04-45EF-815E-6C5D5018499B} = {D4C76F83-EF04-45EF-815E-6C5D5018499B}
 	EndProjectSection
@@ -13,6 +13,7 @@ EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{5991915F-6A53-4C94-9CC8-B8859D6CA400}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
+		README.md = README.md
 	EndProjectSection
 EndProject
 Global

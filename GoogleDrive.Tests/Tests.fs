@@ -8,9 +8,8 @@ open FluentAssertions
 [<Fact>]
 let ``Try deserialize ClientSecrets`` () =
     let s = """{ "web": { "client_id": "CLIENT ID", "client_secret": "CLIENT SECRET" } }"""
-    let result = GoogleClientSecrets.loadFromString(s).Try()
+    let json = GoogleClientSecrets.loadFromString(s)
 
-    let json = result.Get()
     json.Web.IsSome.Should().BeTrue(null) |> ignore
 
     let secret = json.Web.Get()
