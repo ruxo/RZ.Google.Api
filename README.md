@@ -14,3 +14,16 @@ let token =
 
 printfn "Authorized token: %A" token
 ```
+
+## Team Drives API
+### List shared drives
+
+To call Google APIs, you need to pass `TokenResponse` from Authentication section in API
+
+```
+// assume, let token: TokenResponse = authorize scopes secrets
+
+open RZ.Google.Drive
+
+printfn "Drives %s" (TeamDrives.list token)
+```

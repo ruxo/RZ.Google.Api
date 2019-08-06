@@ -7,7 +7,6 @@
 
   <ItemGroup>
     <Compile Include="Tests.fs" />
-    <Compile Include="Main.fs" />
   </ItemGroup>
 
   <ItemGroup>
